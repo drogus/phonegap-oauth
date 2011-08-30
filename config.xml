@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns= "http://www.w3.org/ns/widgets"
+        xmlns:gap= "http://phonegap.com/ns/1.0"
+        id= "com.strobecorp.phonegapoauth"
+        version = "1.0.0">
+
+  <name>Strobe, phonegap oauth</name>
+
+  <description>
+    blah
+  </description>
+
+  <author href="http://strobecorp.com"
+          email="strobe@strobecorp.com">
+    Strobe
+  </author>
+
+  <gap:platforms>
+    <gap:platform name="android" minVersion="2.2" />
+  </gap:platforms>
+
+  <feature name="http://api.phonegap.com/1.0/app"/>
+  <feature name="http://api.phonegap.com/1.0/network"/>
+  <!-- sample preference specification -->
+  <!-- <preference name="autorotate" value="false" readonly="true"/> -->
+</widget>
