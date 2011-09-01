@@ -19,6 +19,10 @@
     <gap:platform name="android" minVersion="2.2" />
   </gap:platforms>
 
+  <gap:plugin name="ChildBrowser" value="com.phonegap.plugins.childBrowser.ChildBrowser">
+    <platform name="android" />
+  </gap:plugin>
+
   <feature name="http://api.phonegap.com/1.0/app"/>
   <feature name="http://api.phonegap.com/1.0/network"/>
   <!-- sample preference specification -->
