@@ -24,6 +24,10 @@
     <platform name="android" />
   </gap:plugin>
 
+  <gap:plugin name="ChildBrowserCommand" value="ChildBrowserCommand">
+    <platform name="ios" />
+  </gap:plugin>
+
   <feature name="http://api.phonegap.com/1.0/app"/>
   <feature name="http://api.phonegap.com/1.0/network"/>
   <!-- sample preference specification -->
