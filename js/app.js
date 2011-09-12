@@ -1,10 +1,23 @@
-document.addEventListener('deviceready', function () {
-    if (typeof ChildBrowser.install == "function") {
-        ChildBrowser.install();
-    } else {
-        window.plugins = window.plugins || {};
-        window.plugins.childBrowser = new ChildBrowser;
-    }
+var twitter = Strobe.Social('twitter');
 
-    window.plugins.childBrowser.showWebPage("http://www.google.com");
-}, false);
+jQuery(function($) {
+  $(".twitter-login").click(function() {
+    console.log('twitter login');
+    twitter.login({
+      type: 'redirect',
+      success: function() {
+        console.log("Successfully logged in.");
+      },
+
+      error: function() {
+        console.warn("Error authenticating with Twitter.");
+      }
+    });
+  });
+
+  $(".twitter-logout").click(function() {
+    twitter.logout({
+      type: 'redirect'
+    });
+  });
+});

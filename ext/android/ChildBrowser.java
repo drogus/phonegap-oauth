@@ -66,7 +66,7 @@ public class ChildBrowser extends Plugin {
 
     /**
      * Display a new browser with the specified URL.
-     * 
+     *
      * NOTE: If usePhoneGap is set, only trusted PhoneGap URLs should be loaded,
      *       since any PhoneGap API can be called by the loaded HTML page.
      *
@@ -93,7 +93,7 @@ public class ChildBrowser extends Plugin {
                 // These parameters can be configured if you want to show the loading dialog
                 intent.putExtra("loadingDialog", "Wait,Loading web page...");   // show loading dialog
                 intent.putExtra("hideLoadingDialogOnPageLoad", true);           // hide it once page has completely loaded
-                
+
             }
             else {
                 intent = new Intent(Intent.ACTION_VIEW);

@@ -24,6 +24,10 @@
     <platform name="android" />
   </gap:plugin>
 
+  <gap:plugin name="OauthRedirect" value="com.phonegap.plugins.oauthRedirect.OauthRedirect">
+    <platform name="android" />
+  </gap:plugin>
+
   <gap:plugin name="ChildBrowserCommand" value="ChildBrowserCommand">
     <platform name="ios" />
   </gap:plugin>

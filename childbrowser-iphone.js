@@ -3,15 +3,13 @@
 
 /*global PhoneGap */
 
-function ChildBrowser() {
-  // Does nothing
-}
+function ChildBrowser() {}
 
 // Callback when the location of the page changes
 // called from native
-ChildBrowser._onLocationChange = function(newLoc)
+ChildBrowser._onLocationChange = function(newLocation)
 {
-  window.plugins.childBrowser.onLocationChange(newLoc);
+  window.plugins.childBrowser.onLocationChange(newLocation);
 };
 
 // Callback when the user chooses the 'Done' button
