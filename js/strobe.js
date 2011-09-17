@@ -1,4 +1,3 @@
-// Copyright 2011 Strobe, Inc. All rights reserved.
 (function ($) {
   var Strobe = {};
 
@@ -18,7 +17,17 @@
     @property {Boolean}
     @default false
   */
-  Strobe.isNativeApp = window.DeviceInfo && DeviceInfo.uuid !== undefined;
+  Strobe.isNativeApp || (Strobe.isNativeApp = window.DeviceInfo && DeviceInfo.uuid !== undefined);
+
+  /**
+    Specifies whether we want to use https when connecting to
+    application on native devices.
+
+    @static
+    @property {Boolean}
+    @default false
+  */
+  Strobe.useHttps || (Strobe.useHttps = false);
 
   /**
     Adds Strobe proxy prefix to a given path.
@@ -204,29 +213,115 @@
   };
 
   /**
-    This needs to be added to hit Strobe services from PhoneGap
-    builds.
+    Construct application url
+    @static
+    @return {String} applicationUrl
   */
+  Strobe.applicationUrl = function() {
+    if(!Settings.applicationUrl) {
+      throw("Application url was not loaded");
+    }
 
-  // Strobe._loadApplicationId = function() {
-  //     $.ajax({
-  //         url: '/strobe/config.json',
-  //         dataType: 'text',
-  //         async: false,
-  //         success: function(data) {
-  //             data = eval("(" + data + ")");;
-  //             var id = data["application_id"];
-  //             if(id) {
-  //                 window.Settings = window.Settings || {};
-  //                 window.Settings.applicationId = id;
-  //             }
-  //         }
-  //     });
-  // };
+    var scheme = Strobe.useHttps ? "https://" : "http://";
+    return scheme + Settings.applicationUrl;
+  };
 
-  // if (Strobe.isNativeApp) {
-  //     Strobe._loadApplicationId();
-  // }
+  /**
+    Ensure that strobe has loaded and run given callback.
+
+    @method run
+    @static
+    @param {Function} callback to run
+  */
+  Strobe.run = function(fn, context) {
+    var f = function() { fn.apply(context); };
+    if(_loaded || _dependencies.length === 0) {
+      f();
+    } else {
+      Strobe._when().then(f).then(function() { _loaded = true; });
+    }
+  };
+
+  Strobe.hasLoaded = function() {
+    return _loaded;
+  };
+
+  /**
+   * Internal functions for handling dependencies, they need to be here
+   */
+
+  var _loaded, _dependencies, _deferred;
+
+  Strobe._reset = function() {
+    _loaded = false;
+    _dependencies = [];
+    _deferred = null;
+  };
+
+  Strobe._reset();
+
+  Strobe._when = function() {
+    if(!_deferred) {
+      var deps = $.map(_dependencies, function(d) { return d(); });
+      _deferred = $.when.apply(this, deps);
+    }
+    return _deferred;
+  };
+
+  Strobe._addDependency = function(fn) {
+    _dependencies.push(function() {
+      return $.Deferred(function(deferred) {
+        fn(deferred);
+      });
+    });
+  };
+
+  var STROBE_JS_VERSION = '0.1.0';
+
+  Strobe.isNativeApp = true;
+
+  var loadScript = function(src, callback) {
+    var head   = document.getElementsByTagName('head')[0];
+    var script = document.createElement("script");
+
+    if(callback) {
+      script.onload = function() {
+        if ( ! script.onloadDone ) {
+          script.onloadDone = true;
+          callback();
+        }
+      };
+
+      script.onreadystatechange = function() {
+        if ( ( "loaded"   === script.readyState ||
+               "complete" === script.readyState ) &&
+             !script.onloadDone ) {
+               script.onloadDone = true;
+            callback();
+          }
+      };
+    };
+
+    script.type = "text/javascript";
+    script.src  = src;
+
+    head.appendChild(script);
+  };
+
+  Strobe._addDependency(function(defer) {
+    $(function() {
+      document.addEventListener("deviceready", function() {
+        var agent = navigator.userAgent.match("Android") ? "android" : "iphone";
+        loadScript("childbrowser-" + agent + ".js", function() {
+          defer.resolve();
+        });
+      }, false);
+    });
+  });
+
+  window.Settings = {
+    applicationUrl: "eb0bd0d107.applications.strobeapp.com"
+  };
 
 })(jQuery);
 (function (window, $, Strobe) {
@@ -303,6 +398,7 @@ Twitter_prototype.ajax = function(url, options) {
   url || (url = options.url);
 
   options.url = this.urlFor(url);
+  console.log(options.url);
   return $.ajax(options);
 };
 
@@ -317,9 +413,27 @@ Twitter_prototype.ajax = function(url, options) {
 */
 
 Twitter_prototype.urlFor = function(path) {
-  return "/_strobe/social/twitter/" + path.replace(/^\//, "");
+  var prefix = "/_strobe/social/twitter/";
+  if(Strobe.isNativeApp) {
+    prefix = Strobe.applicationUrl() + prefix;
+  }
+  return  prefix + path.replace(/^\//, "");
 };
 
+/**
+  Returns url for oauth callback passed to twitter
+
+  @private
+  @returns {String}
+*/
+Twitter_prototype.oauthCallback = function() {
+  var url = this.urlFor("/callback");
+  if(Strobe.isNativeApp) {
+    return url;
+  } else {
+    return window.location.protocol + "//" + window.location.host + url;
+  }
+};
 
 /**
   Prompts the user to log in to Twitter. Once authenticated, the callback you
@@ -339,82 +453,87 @@ Twitter_prototype.urlFor = function(path) {
 */
 
 Twitter_prototype.login = function (settings, prompt) {
-  settings               || (settings = {});
-  settings.oauthCallback || (settings.oauthCallback = window.location.protocol + "//" + window.location.host + "/_strobe/social/twitter/callback");
-  settings.interval      || (settings.interval = 100);
-  settings.type          || (settings.type = 'popup');
+  Strobe.run(function() {
+    settings               || (settings = {});
+    settings.oauthCallback || (settings.oauthCallback = this.oauthCallback());
+    settings.interval      || (settings.interval = 100);
+    settings.type          || (settings.type = 'popup');
 
-  prompt = (prompt === undefined) ? true : false;
+    prompt = (prompt === undefined) ? true : false;
 
-  var interval, popup, path, self = this;
-  var error = settings.error, success = settings.success;
+    var interval, popup, path, self = this;
+    var error = settings.error, success = settings.success;
 
-  path  = "/_strobe/social/twitter/authentication?oauth_callback=";
-  path += encodeURIComponent(settings.oauthCallback);
+    path  = this.urlFor("/authentication?oauth_callback=");
+    path += encodeURIComponent(settings.oauthCallback);
 
-  // First, issue an XHR request to the Strobe Social add-on authentication resource.
-  $.ajax(path, {
+    // First, issue an XHR request to the Strobe Social add-on authentication resource.
+    $.ajax(path, {
 
-    success: function(data) {
-      var authenticationResults = data.authentication;
+      success: function(data) {
+        var authenticationResults = data.authentication;
 
-      // If the server tells us that we are not authenticated, we need to send the
-      // user to twitter.com to grant us access to their account.
-      if (authenticationResults.status === 'unauthenticated') {
+        // If the server tells us that we are not authenticated, we need to send the
+        // user to twitter.com to grant us access to their account.
+        if (authenticationResults.status === 'unauthenticated') {
 
-        // If we're told not to prompt for authentication, we should treat this login
-        // request as essentially a status check. This is used internally if
-        // we display a pop-up to determine if the user actually granted us
-        // access after displaying the pop-up, or if they bailed at the last
-        // moment.
-        if (prompt) {
+          // If we're told not to prompt for authentication, we should treat this login
+          // request as essentially a status check. This is used internally if
+          // we display a pop-up to determine if the user actually granted us
+          // access after displaying the pop-up, or if they bailed at the last
+          // moment.
+          if (prompt) {
 
-          // If the developer has asked us to show a popup, create a new window,
-          // then continue polling until its closed. Once closed, we double check
-          // with the server to verify that the user actually granted us access
-          // and didn't just close the window.
-          if (settings.type === 'popup') {
-            popup = Strobe.popup(authenticationResults.authentication_uri, 'twitter_authentication');
+            // If the developer has asked us to show a popup, create a new window,
+            // then continue polling until its closed. Once closed, we double check
+            // with the server to verify that the user actually granted us access
+            // and didn't just close the window.
+            if (settings.type === 'popup') {
+              popup = Strobe.popup(authenticationResults.authentication_uri, 'twitter_authentication');
 
-            interval = window.setInterval(function () {
-              if (popup.closed) {
-                window.clearInterval(interval);
+              interval = window.setInterval(function () {
+                if (popup.closed) {
+                  window.clearInterval(interval);
 
-                // Call this method with prompt set to false, which will not
-                // prompt the user again if they are still not authenticated.
-                self.login(settings, false);
-              }
-            }, settings.interval);
-          } else {
-
-            // If we're not showing a popup, just redirect to the twitter.com page.
-            // Once authentication is complete, we'll be redirected to this page.
-            var uri = authenticationResults.authentication_uri;
-            console.log(uri);
-            if(Strobe.isNativeApp) {
-              console.log("Running oauth redirect with: ", uri);
-              PhoneGap.exec(null, null, "OauthRedirect", "redirectTo", [uri, "^http://phonegap-oauth.strobeapp.com/?$"]);
+                  // Call this method with prompt set to false, which will not
+                  // prompt the user again if they are still not authenticated.
+                  self.login(settings, false);
+                }
+              }, settings.interval);
             } else {
-              window.location = uri;
+
+              // If we're not showing a popup, just redirect to the twitter.com page.
+              // Once authentication is complete, we'll be redirected to this page.
+              var uri = authenticationResults.authentication_uri;
+              if (Strobe.isNativeApp) {
+                window.plugins.childBrowser.onLocationChange = function (url) {
+                  if ( url == Strobe.applicationUrl() ) {
+                    window.plugins.childBrowser.close ();
+                  }
+                };
+                window.plugins.childBrowser.showWebPage (uri, {showLocationBar: false});
+              } else {
+                window.location = uri;
+              }
+
+              return;
             }
 
-            return;
+          } else {
+            // Trigger error callback if we're not authenticated and not allowed
+            // to prompt the user.
+            if (error) { error(); }
           }
-
         } else {
-          // Trigger error callback if we're not authenticated and not allowed
-          // to prompt the user.
-          if (error) { error(); }
+          if (success) { success(); }
         }
-      } else {
-        if (success) { success(); }
-      }
-    },
+      },
 
-    // Tell jQuery to call the provided error callback if a network error is
-    // encountered.
-    error: settings.error
-  });
+      // Tell jQuery to call the provided error callback if a network error is
+      // encountered.
+      error: settings.error
+    });
+  }, this);
 };
 
 /**
@@ -423,15 +542,17 @@ Twitter_prototype.login = function (settings, prompt) {
   @param {Object} settings (optional) Settings object.
 */
 Twitter_prototype.logout = function (settings) {
-  settings || (settings = {});
+  Strobe.run(function() {
+    settings || (settings = {});
 
-  $.ajax({
-    type: 'DELETE',
-    url: '/_strobe/social/twitter/authentication',
-    success: settings.success,
-    error: settings.error,
-    complete: settings.complete
-  });
+    $.ajax({
+      type: 'DELETE',
+      url: this.urlFor('/authentication'),
+      success: settings.success,
+      error: settings.error,
+      complete: settings.complete
+    });
+  }, this);
 };
 
 /**

@@ -6,15 +6,9 @@
 
   <script src="js/jquery.js"></script>
   <script src="js/strobe.js"></script>
-  <script>
+  <script type="text/javascript">
     if(Strobe.isNativeApp) {
       document.write('<script src="phonegap.js"><\/script>');
-
-      if (navigator.userAgent.match("Android")) {
-        document.write('<script src="childbrowser-android.js"><\/script>');
-      } else {
-        document.write('<script src="childbrowser-iphone.js"><\/script>');
-      }
     }
   </script>
   <script src="js/app.js"></script>
@@ -22,6 +16,10 @@
 <body>
   <p><a href="#" class="twitter-login">Login</a></p>
   <p><a href="#" class="twitter-logout">Logout</a></p>
+  <p><input id="tweet" value="hello" /></p>
+  <p><a href="#" class="twitter-tweet">Tweet</a></p>
+  <p><form id="#console_form"><input id="console" value="" /></form></p>
+
 
   <div id="messages">
   </div>
