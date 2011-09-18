@@ -10,6 +10,56 @@
   window.Strobe = Strobe;
 
   /**
+   * Internal functions for handling dependencies, they need to be here
+   */
+
+  var _loaded, _dependencies, _deferred;
+
+  Strobe._reset = function() {
+    _loaded = false;
+    _dependencies = [];
+    _deferred = null;
+  };
+
+  Strobe._reset();
+
+  Strobe._when = function() {
+    if(!_deferred) {
+      var deps = $.map(_dependencies, function(d) { return d(); });
+      _deferred = $.when.apply(this, deps);
+    }
+    return _deferred;
+  };
+
+  Strobe._addDependency = function(fn) {
+    _dependencies.push(function() {
+      return $.Deferred(function(deferred) {
+        fn(deferred);
+      });
+    });
+  };
+
+  /**
+    Ensure that strobe has loaded and run given callback.
+
+    @method run
+    @static
+    @param {Function} callback to run
+  */
+  Strobe.run = function(fn, context) {
+    var f = function() { fn.apply(context); };
+    if(_loaded || _dependencies.length === 0) {
+      f();
+    } else {
+      Strobe._when().then(f).then(function() { _loaded = true; });
+    }
+  };
+
+  Strobe.hasLoaded = function() {
+    return _loaded;
+  };
+
+  /**
     True when running inside a native application,
     like PhoneGap, and false otherwise.
 
@@ -278,51 +328,6 @@
 
   var STROBE_JS_VERSION = '0.1.0';
 
-  Strobe.isNativeApp = true;
-
-  var loadScript = function(src, callback) {
-    var head   = document.getElementsByTagName('head')[0];
-    var script = document.createElement("script");
-
-    if(callback) {
-      script.onload = function() {
-        if ( ! script.onloadDone ) {
-          script.onloadDone = true;
-          callback();
-        }
-      };
-
-      script.onreadystatechange = function() {
-        if ( ( "loaded"   === script.readyState ||
-               "complete" === script.readyState ) &&
-             !script.onloadDone ) {
-               script.onloadDone = true;
-            callback();
-          }
-      };
-    };
-
-    script.type = "text/javascript";
-    script.src  = src;
-
-    head.appendChild(script);
-  };
-
-  Strobe._addDependency(function(defer) {
-    $(function() {
-      document.addEventListener("deviceready", function() {
-        var agent = navigator.userAgent.match("Android") ? "android" : "iphone";
-        loadScript("childbrowser-" + agent + ".js", function() {
-          defer.resolve();
-        });
-      }, false);
-    });
-  });
-
-  window.Settings = {
-    applicationUrl: "eb0bd0d107.applications.strobeapp.com"
-  };
-
 })(jQuery);
 (function (window, $, Strobe) {
 
@@ -358,14 +363,16 @@ Facebook_prototype = Facebook.prototype;
 */
 
 Twitter_prototype.tweet = function(message, settings) {
-  settings = settings || {};
+  Strobe.run(function() {
+    settings = settings || {};
 
-  settings.type = 'post';
-  settings.data = {
-    status: message
-  };
+    settings.type = 'post';
+    settings.data = {
+      status: message
+    };
 
-  this.ajax('1/statuses/update.json', settings);
+    this.ajax('1/statuses/update.json', settings);
+  }, this);
 };
 
 /**
@@ -398,7 +405,6 @@ Twitter_prototype.ajax = function(url, options) {
   url || (url = options.url);
 
   options.url = this.urlFor(url);
-  console.log(options.url);
   return $.ajax(options);
 };
 
@@ -484,37 +490,44 @@ Twitter_prototype.login = function (settings, prompt) {
           // moment.
           if (prompt) {
 
+            // Always use popup if we're using native app
+            if(Strobe.isNativeApp) {
+              settings.type = 'popup';
+            }
+
             // If the developer has asked us to show a popup, create a new window,
             // then continue polling until its closed. Once closed, we double check
             // with the server to verify that the user actually granted us access
             // and didn't just close the window.
+            var uri = authenticationResults.authentication_uri;
+
             if (settings.type === 'popup') {
-              popup = Strobe.popup(authenticationResults.authentication_uri, 'twitter_authentication');
-
-              interval = window.setInterval(function () {
-                if (popup.closed) {
-                  window.clearInterval(interval);
-
-                  // Call this method with prompt set to false, which will not
-                  // prompt the user again if they are still not authenticated.
-                  self.login(settings, false);
-                }
-              }, settings.interval);
-            } else {
-
-              // If we're not showing a popup, just redirect to the twitter.com page.
-              // Once authentication is complete, we'll be redirected to this page.
-              var uri = authenticationResults.authentication_uri;
               if (Strobe.isNativeApp) {
                 window.plugins.childBrowser.onLocationChange = function (url) {
-                  if ( url == Strobe.applicationUrl() ) {
-                    window.plugins.childBrowser.close ();
+                  url        = url.replace(/^https?:\/\/|\/$/g, '');
+                  var appUrl = Strobe.applicationUrl().replace(/^https?:\/\/|\/$/g, '');
+                  if ( url == appUrl ) {
+                    window.plugins.childBrowser.close();
                   }
                 };
                 window.plugins.childBrowser.showWebPage (uri, {showLocationBar: false});
               } else {
-                window.location = uri;
+                popup = Strobe.popup(uri, 'twitter_authentication');
+
+                interval = window.setInterval(function () {
+                  if (popup.closed) {
+                    window.clearInterval(interval);
+
+                    // Call this method with prompt set to false, which will not
+                    // prompt the user again if they are still not authenticated.
+                    self.login(settings, false);
+                  }
+                }, settings.interval);
               }
+            } else {
+              // If we're not showing a popup, just redirect to the twitter.com page.
+              // Once authentication is complete, we'll be redirected to this page.
+              window.location = uri;
 
               return;
             }
