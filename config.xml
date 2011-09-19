@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<widget xmlns= "http://www.w3.org/ns/widgets"
-        xmlns:gap= "http://phonegap.com/ns/1.0"
-        id= "com.strobecorp.phonegapoauth"
+<widget xmlns="http://www.w3.org/ns/widgets"
+        xmlns:gap="http://phonegap.com/ns/1.0"
+        id="6FNJX9Q597.com.strobe.testing"
         versionCode="101"
         version = "1.0.0">
 
