@@ -10,56 +10,6 @@
   window.Strobe = Strobe;
 
   /**
-   * Internal functions for handling dependencies, they need to be here
-   */
-
-  var _loaded, _dependencies, _deferred;
-
-  Strobe._reset = function() {
-    _loaded = false;
-    _dependencies = [];
-    _deferred = null;
-  };
-
-  Strobe._reset();
-
-  Strobe._when = function() {
-    if(!_deferred) {
-      var deps = $.map(_dependencies, function(d) { return d(); });
-      _deferred = $.when.apply(this, deps);
-    }
-    return _deferred;
-  };
-
-  Strobe._addDependency = function(fn) {
-    _dependencies.push(function() {
-      return $.Deferred(function(deferred) {
-        fn(deferred);
-      });
-    });
-  };
-
-  /**
-    Ensure that strobe has loaded and run given callback.
-
-    @method run
-    @static
-    @param {Function} callback to run
-  */
-  Strobe.run = function(fn, context) {
-    var f = function() { fn.apply(context); };
-    if(_loaded || _dependencies.length === 0) {
-      f();
-    } else {
-      Strobe._when().then(f).then(function() { _loaded = true; });
-    }
-  };
-
-  Strobe.hasLoaded = function() {
-    return _loaded;
-  };
-
-  /**
     True when running inside a native application,
     like PhoneGap, and false otherwise.
 
@@ -277,26 +227,6 @@
   };
 
   /**
-    Ensure that strobe has loaded and run given callback.
-
-    @method run
-    @static
-    @param {Function} callback to run
-  */
-  Strobe.run = function(fn, context) {
-    var f = function() { fn.apply(context); };
-    if(_loaded || _dependencies.length === 0) {
-      f();
-    } else {
-      Strobe._when().then(f).then(function() { _loaded = true; });
-    }
-  };
-
-  Strobe.hasLoaded = function() {
-    return _loaded;
-  };
-
-  /**
    * Internal functions for handling dependencies, they need to be here
    */
 
@@ -324,6 +254,26 @@
         fn(deferred);
       });
     });
+  };
+
+  /**
+    Ensure that strobe has loaded and run given callback.
+
+    @method run
+    @static
+    @param {Function} callback to run
+  */
+  Strobe.run = function(fn, context) {
+    var f = function() { fn.apply(context); };
+    if(_loaded || _dependencies.length === 0) {
+      f();
+    } else {
+      Strobe._when().then(f).then(function() { _loaded = true; });
+    }
+  };
+
+  Strobe.hasLoaded = function() {
+    return _loaded;
   };
 
   var STROBE_JS_VERSION = '0.1.0';
