@@ -18,13 +18,10 @@
 
   <gap:platforms>
     <gap:platform name="android" minVersion="2.2" />
+    <gap:platform name="ios" minVersion="4.0" />
   </gap:platforms>
 
   <gap:plugin name="ChildBrowser" value="com.phonegap.plugins.childBrowser.ChildBrowser">
-    <platform name="android" />
-  </gap:plugin>
-
-  <gap:plugin name="OauthRedirect" value="com.phonegap.plugins.oauthRedirect.OauthRedirect">
     <platform name="android" />
   </gap:plugin>
 
